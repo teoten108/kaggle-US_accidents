@@ -1,0 +1,418 @@
+---
+title: "Total exportation of Mexico by State and Activity"
+author: Manuel T.
+output:
+  md_document:
+    variant: markdown_github
+---
+
+# INTRODUCTION
+
+The following project is an Exploratory Data Analysis based on a data set
+obtained from kaggle, [US Accidents](https://www.kaggle.com/sobhanmoosavi/us-accidents),
+which was intended to be my first kernel in Kaggle. For that reason I
+decided to work the code on my personal computer and upload the updates to
+kaggle every now and then. I have decided to keep a copy on github in
+order to keep all my work of data processing together in one website.
+However, the kaggle kernel that I created can be found [here](https://www.kaggle.com/teoten/us-accidents-eda)
+
+Let's get started with the required libraries and calling the data:
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(lubridate)
+library(cowplot)
+
+#US_accidents <- read_csv('../input/us-accidents/US_Accidents_May19.csv')
+load('eda.RData')
+```
+
+Now we can start with a general overview of the data, the `tibble`, and a
+quick summary of the numeric variables using the basic R function `summary`
+
+```{r, message = FALSE, warning = FALSE}
+## First view
+US_accidents
+
+## Numeric vars
+US_accidents %>%
+    select(Severity,
+           `Distance(mi)`,
+           `Temperature(F)`,
+           `Wind_Chill(F)`,
+           `Humidity(%)`,
+           `Pressure(in)`,
+           `Visibility(mi)`,
+           `Wind_Speed(mph)`,
+           `Precipitation(in)`) %>%
+    summary()
+```
+By default, calling the data as a tibble gives us already valuable
+information on the data set. Using `summary` on selected variables returns
+a first description of our data, and the first impressions about the
+accidents: 
+  * There are extreme temperatures, from -77 to 170 F
+  * Wind chill also extreme to -65
+  * Maximum wind speed reaches 822 mph
+  * Humidity reaches 100 %
+  * Precipitation, distance affected and visibility do not seem to be of big importance
+  
+We can go now to the Boolean variables:
+
+```{r, message = FALSE, warning = FALSE}
+## Boolean vars
+US_accidents %>%
+    select(Amenity:Turning_Loop) %>%
+    summary()
+
+## Graphical representation
+signals <- US_accidents %>%
+    select(Amenity:Turning_Loop) %>%
+    pivot_longer( cols = Amenity:Turning_Loop,
+        names_to = 'Annotation',
+        values_to = 'Trues') %>%
+    filter(Trues == TRUE) %>%
+    group_by(Annotation) %>%
+    summarise(Total = n())
+
+signals %>%
+    ggplot() +
+    geom_bar(aes(y = Total,
+                 x = reorder(Annotation, Total, FUN = abs),
+                 fill = Total),
+             stat = 'identity') +
+    coord_flip() +
+    labs(x = NULL) +
+    theme(legend.position="none")
+```
+We can also see that most of the accidents happen at traffic signals, then
+junctions and crossing.
+
+```{r, message = FALSE, warning = FALSE}
+## Other variables
+US_accidents %>%
+    select(ID, Source, TMC, Severity, Description, Amenity, Stop) %>%
+    sample_n(size = 50) %>%
+    print(n = 50)
+
+## API which reported accident
+unique(US_accidents$Source)
+## Traffic message channel
+unique(US_accidents$TMC)
+## Severity: 1 is lesser, 4 is higher
+unique(US_accidents$Severity)
+```
+There are 3 sources of the data, 21 traffic message channels and 4 
+values of severity.
+
+# NUMERIC VARIABLES
+
+Now we are going deeper into the numeric variables that could possibly have
+certain influence in the occurrence of accidents, due to their extreme 
+values. Therefore, we start by observing if the extreme values (such as too
+cold or too hot weather) are a normal trend for the accidents to happen, 
+or they are rather atypical values.
+
+```{r}
+## Temperature
+US_accidents %>%
+    ggplot() +
+    geom_histogram(aes(x = `Temperature(F)`))
+
+## Central view on the main trend
+US_accidents %>%
+    filter(`Temperature(F)` > 0 &
+           `Temperature(F)` <= 100) %>%
+    ggplot() +
+    geom_histogram(aes(x = `Temperature(F)`))
+
+## More specific view at the main values
+US_accidents %>%
+    filter(`Temperature(F)` > 45 &
+           `Temperature(F)` <= 80) %>%
+    ggplot() +
+    geom_histogram(aes(x = `Temperature(F)`))
+
+```
+In the first plot we can immediately see that below 0 and above 100&deg;F 
+there is practically nothing. Therefore we create a second plot centred 
+between this values. Here we can see that most of the accidents happen 
+between 45 and 80&deg;F, with some particular peaks. Thus, we create a 
+third plot where
+we can see those peaks in more detail. There is a particular trend of a
+considerable increase in the number of accidents marked by a peak, and then
+a drop, follow by a slow increase, and then the same trend. This could be 
+caused most probably by the instruments of measurement in the 
+meteorological station, to certain extent. 
+
+```{r}
+## Wind chill
+US_accidents %>%
+    ggplot() +
+    geom_histogram(aes(x = `Wind_Chill(F)`))
+
+US_accidents %>%
+    select(`Wind_Chill(F)`) %>%
+    filter(`Wind_Chill(F)` < 30) %>%
+    summarise(n())
+```
+There is an increase in the number of accidents with the increase of the
+wind temperature, with the peak at 75&deg;F. The number of accidents at 
+really cold temperatures (here I chose 30&deg;F) is rather small compared 
+with the total accidents: 209,936 out of 2,243,939, or 9.35 %
+
+```{r}
+## Wind speed
+US_accidents %>%
+    ggplot() +
+    geom_histogram(aes(x = `Wind_Speed(mph)`))
+
+US_accidents %>%
+    select(`Wind_Speed(mph)`) %>%
+    filter(`Wind_Speed(mph)` < 25) %>%
+    ggplot() +
+    geom_histogram(aes(x = `Wind_Speed(mph)`))
+```
+Despite of the fact that maximum wind speed reaches, we can see in
+our first plot that most of the accidents happened at rather low speed.
+More interesting: when we zoom into the values below 25 mph we can see
+again a trend of gaps between certain values. This is clearly a 
+measurement issue. Thus, our theory about the temperature problems could
+be certainly related to the measurement instruments. 
+
+```{r}
+## Humidity
+US_accidents %>%
+    ggplot() +
+    geom_histogram(aes(x = `Humidity(%)`))
+
+US_accidents %>%
+    select(`Humidity(%)`) %>%
+    filter(`Humidity(%)` > 35) %>%
+    ggplot() +
+    geom_histogram(aes(x = `Humidity(%)`))
+```
+Unlike our previous variables, we can see that the number of accidents
+increases when the humidity increases. 
+
+# STATES
+
+Now let's explore a little bit the accidents in different states: which
+state has the main occurrence of accidents? Which one the most severe
+ones? Is there a relationship with the traffic lights or the humidity
+as we discovered early?
+
+We can start with the basic questions, amount of accidents per state and
+severity:
+
+```{r}
+## Amount of accidents per state
+US_accidents %>%
+    select(State) %>%
+    group_by(State) %>%
+    summarise(Total = n()) %>%
+    ggplot() +
+    geom_bar(aes(y = Total,
+                 x = reorder(State, Total, FUN = abs),
+                 fill = Total),
+             stat = 'identity') +
+    coord_flip() +
+    labs(x = NULL) +
+    theme(legend.position="none")
+
+## Amount per state/severity, proportional
+US_accidents %>%
+    select(Severity, State) %>%
+    mutate(State = parse_factor(State),
+           Severity = parse_factor(as.character(Severity))) %>%
+    group_by(State, Severity) %>%
+    summarise(Total = n()) %>%
+    ggplot() +
+    geom_bar(aes(y = Total,
+                 x = State,
+                 fill = Severity),
+             stat = 'identity',
+             position = 'fill') +
+    coord_flip() +
+    scale_fill_brewer(palette = 'BuPu') +
+    labs(x = NULL)
+```
+
+At first glance it is clear that most of the accidents were reported from
+CA, then TX and FL. As for the severity, most of the records are for 
+severity levels 2 and 3. It can be interesting to see if the states where
+most of the accidents happen are also correlated with the severity. For
+this I have created a function to to plot each severity value and filter
+values above a given number of observations. Using this function we can 
+later adapt each graphic for a better visualisation:
+
+```{r}
+## Function
+plot_SevState <- function(sev, min = 10000) {
+    US_accidents %>%
+        select(State, Severity) %>%
+        filter(Severity == sev) %>%
+        group_by(State) %>%
+        summarise(Total = n()) %>%
+        filter(Total > min) %>%
+        ggplot() +
+        geom_bar(aes(y = Total,
+                     x = reorder(State, Total, FUN = abs),
+                     fill = Total),
+                 stat = 'identity') +
+        coord_flip() +
+        labs(x = NULL, y = paste("Severity", sev, "Total")) +
+        theme(legend.position="none")
+}
+
+## Visualization
+plot_grid(
+    plot_SevState(1, min = 50),
+    plot_SevState(2, min = 50000),
+    plot_SevState(3),
+    plot_SevState(4, min = 2000))
+```
+
+As expected, CA is in the first positions of the four plots, while TX and FL
+are also around. When it comes to the accidents with severity level 4, we
+see FL in the first position, followed by GA and CA. The order vary, but
+the difference between each state is minimal compared with the number of 
+entries that we have.
+
+We can also check the relationship between states and our most influencial
+variables, such as humidity and traffict signals. 
+
+```{r}
+## Relationship with humidity
+US_accidents %>%
+    select(State, `Humidity(%)`, Severity) %>%
+    filter(Severity != 0) %>%
+    mutate(State = parse_factor(State),
+           Severity = parse_factor(as.character(Severity))) %>%
+    group_by(State, Severity) %>%
+    summarise(Humidity = mean(`Humidity(%)`, na.rm = T)) %>%
+    ggplot(aes(x = State, y = Humidity)) +
+    geom_point(aes(colour = Severity, shape = Severity),
+               size = 6) +
+    scale_fill_brewer(palette = 'BuPu') +
+    labs(y = 'Average humidity')
+
+US_accidents %>%
+    select(State, `Humidity(%)`, Severity) %>%
+    filter(Severity != 0) %>%
+    mutate(State = parse_factor(State),
+           Severity = parse_factor(as.character(Severity))) %>%
+    group_by(State, Severity) %>%
+    summarise(Humidity = mean(`Humidity(%)`, na.rm = T)) %>%
+    filter(Humidity > 70) %>%
+    ggplot(aes(x = State, y = Humidity)) +
+    geom_point(aes(colour = Severity, shape = Severity),
+               size = 6) +
+    scale_fill_brewer(palette = 'BuPu') +
+    labs(y = 'Average humidity')
+
+## States with main accidents at traffic signals
+US_accidents %>%
+    select(State, Traffic_Signal) %>%
+    filter(Traffic_Signal == TRUE) %>%
+    group_by(State) %>%
+    summarise(Total = n()) %>%
+    filter(Total > 5000) %>%
+    ggplot() +
+    geom_bar(aes(y = Total,
+                 x = reorder(State, Total, FUN = abs),
+                 fill = Total),
+             stat = 'identity') +
+    coord_flip() +
+    labs(x = NULL, y = 'No. of accidents at traffic signals') +
+    theme(legend.position="none")
+```
+
+Accidents of severity 1 happen at different ranges of humidity, from dry 
+conditions to very humid. However, most of the accidents happen at average
+humidity percentage between 60 and 80. For accidents of level 4 there is
+and increase in the average humidity, happening between 70-77% most of the
+times. At Hum > 80% happen mostly accidents level 1. ND state is a 
+particular case, with level 4 accidents of average humidity of 91%, CA and 
+TX are not among the states with average humidity above 70%.
+
+As for traffic signals, we have again our top states heading the others, 
+but in a different order. CA comes in third place, it could be that traffic
+signal areas are not the mean place for accidents in CA.
+
+```{r}
+## View at CA only
+filter(US_accidents, State == "CA") %>%
+    select(Amenity:Turning_Loop) %>%
+    summary()
+```
+
+It looks like in CA, most of the accidents are reported at junctions more
+than at traffic signals. 
+
+# TIME
+
+Now we are going to have a quick view on the occurrence of accidents in
+time. The first idea and easiest option would be to look at the occurrence
+of accidents in specific moments, say grouped by Month (to represent time
+of the year) and by Hour (to obtain time of the day). For this we can use
+the package `lubridate` which makes such work easier:
+
+```{r, message = FALSE, warning = FALSE}
+## Months
+US_accidents %>%
+    select(Start_Time) %>%
+    transmute(Month = month(Start_Time,
+                            label = T,
+                            locale = 'en_US.utf8')) %>%
+    ggplot(aes(x = Month)) +
+    geom_bar()
+
+## Per hour
+US_accidents %>%
+    select(Start_Time) %>%
+    transmute(Hour = hour(Start_Time)) %>%
+    mutate(Hour = factor(as.character(Hour),
+                         levels = as.character(c(0:23)))) %>%
+    ggplot(aes(Hour)) +
+    geom_histogram(stat = 'count')
+```
+
+The amount of accidents reduces between April and July, as well as during
+night time. It seems that most of the accidents happen in the morning, 
+between 7-8 hrs, and at early evening, between 16-17 hrs. In other view,
+less accidents are happening during the warmest months and during the
+coldest hours. That might answer the question why we did not find a trend
+in the occurrence of accidents related to Temperature or Wind Chill, but
+Humidity, considering that humidity raises at dusk and down, with the
+movements of the sun.
+
+```{r, message = FALSE, warning = FALSE}
+## Month and humidity
+US_accidents %>%
+    select(Start_Time, `Humidity(%)`) %>%
+    mutate(Month = month(Start_Time,
+                            label = T,
+                         locale = 'en_US.utf8')) %>%
+    group_by(Month) %>%
+    summarise(Avg_Hum = mean(`Humidity(%)`, na.rm = T),
+              Count = n()) %>%
+    ggplot(aes(x = Month, y = Avg_Hum)) +
+    geom_point(aes(size = Count))
+
+## Hour and Humidity
+US_accidents %>%
+    select(Start_Time, `Humidity(%)`) %>%
+    mutate(Hour = hour(Start_Time),
+           Hour = factor(as.character(Hour),
+                         levels = as.character(c(0:23)))) %>%
+    group_by(Hour) %>%
+    summarise(Avg_Hum = mean(`Humidity(%)`, na.rm = T),
+              Count = n()) %>%
+    ggplot(aes(x = Hour, y = Avg_Hum)) +
+    geom_point(aes(size = Count))
+```
+
+As expected, we can easily observe the rise of the humidity at dusk and
+down (moments of most accidents), and its reduction between March and July
+(months with less accidents).
