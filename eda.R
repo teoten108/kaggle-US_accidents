@@ -5,8 +5,8 @@ library(lubridate)
 #US_accidents <- read_csv('US_Accidents_May19.csv')
 load('eda.RData')
 
-## First view to the data:
-## -------------------------------------------------------------------
+### First view to the data: EDA
+### -------------------------------------------------------------------
 
 ## Numeric vars
 US_accidents %>%
@@ -136,6 +136,7 @@ US_accidents %>%
 
 
 ### STATES AND/OR LOCATION
+### -------------------------------------------------------------------
 
 ## Amount of accidents per state
 US_accidents %>%
@@ -249,6 +250,7 @@ filter(US_accidents, State == "ND") %>%
 
 
 ## TIME
+### -------------------------------------------------------------------
 
 ## Months
 US_accidents %>%
@@ -318,9 +320,136 @@ US_accidents %>%
     geom_point(aes(size = Count))
 
 
-### CORRELATIONS
+#######################################################################
+### PREDICTIONS
+### -------------------------------------------------------------------
+###
+## We can start by selecting and or creating a new tibble with the
+## variables that we want or can work with
 
+make_vars <- function(filter_by = "City", name){
+    cty <- filter(US_accidents, !!sym(filter_by) == name)
+    variables <- cty %>%
+    filter(Severity != 0) %>%
+    mutate(Hour = hour(Start_Time),
+           Hour = factor(as.character(Hour),
+                         levels = as.character(c(0:23))),
+           Month = month(Start_Time,
+                            label = T,
+                         locale = 'en_US.utf8'),
+           Severity_factor = ifelse(Severity == 1, 'Low',
+                             ifelse(Severity == 2, 'Mid-low',
+                             ifelse(Severity == 3, 'Mid-high', 'High'))),
+           Severity_factor = parse_factor(Severity_factor))
+    variables <- variables %>%
+        select(Severity_factor, `Temperature(F)`:Turning_Loop,
+               Hour, Month,
+               -Weather_Condition,
+               -`Wind_Chill(F)`,
+               -`Precipitation(in)`,
+               -`Distance(mi)`)
+    ## We can change some column names for certain packages to work better
+    names(variables)[2:7] <- c('Temp',  'Humidity',
+                               'Press', 'Visib',
+                               'Wind_dir', 'Wind_Sp')
+## To omit na's we need to remove certain variables full of NAs
+    variables <- na.omit(variables)
+    variables
+}
+
+LA <- make_vars(name = "Los Angeles")
+Mon <- make_vars(filter_by = "County", "Montgomery")
+
+## -------------------------------------------------------------------##
+library("rpart")
+library("ranger")
+
+## split into two subsets: training (70%) and test (30%)
+set.seed(1234)
+ind.LA <- sample(2, nrow(LA), replace=TRUE, prob=c(0.7, 0.3))
+train.LA <- LA[ind.LA==1,]
+test.LA <- LA[ind.LA==2,]
+ind.Mon <- sample(2, nrow(Mon), replace=TRUE, prob=c(0.7, 0.3))
+train.Mon <- Mon[ind.Mon==1,]
+test.Mon <- Mon[ind.Mon==2,]
+
+## Using rpart <------------------------------------------------------|
+mod.LA <- rpart(Severity_factor ~ .,
+                   data = train.LA,  parms = list(split = 'gini'))
+
+mod.Mon <- rpart(Severity_factor ~ .,
+                   data = train.Mon,  parms = list(split = 'gini'))
+
+## View of model and prediction
+mod.rpart2
+summary(mod.rpart)
+printcp(mod.rpart2)
+
+par(mfrow=c(1,2)) # two plots on one page 
+plot(mod.LA)
+text(mod.LA)
+plot(mod.Mon)
+text(mod.Mon)
+
+pred.Mon <- predict(mod.Mon, test.Mon, type = "class")
+(confMat.Mon <- table(pred.Mon, test.Mon$Severity_factor))
+(accuracy.Mon <- sum(diag(confMat.Mon))/sum(confMat.Mon))
+
+pred.LA <- predict(mod.LA, test.LA, type = "class")
+(confMat.LA <- table(pred.LA, test.LA$Severity_factor))
+(accuracy.LA <- sum(diag(confMat.LA))/sum(confMat.LA))
+
+##  the impurity indices I(AR) and I(AL) are calculated only over the
+## observations which are not missing a particular predictor
+
+## Using ranger <----------------------------------------------------|
+
+ranger.LA <- ranger(Severity_factor ~ ., data = train.LA)
+ranger.Mon <- ranger(Severity_factor ~ ., data = train.Mon)
+
+predRan.LA <- predict(ranger.LA, data = test.LA)
+(confRan.LA <- table(predictions(predRan.LA), test.LA$Severity_factor))
+(accuRan.LA <- sum(diag(confRan.LA))/sum(confRan.LA))
+
+predRan.Mon <- predict(ranger.Mon, data = test.Mon)
+(confRan.Mon <- table(predictions(predRan.Mon), test.Mon$Severity_factor))
+(accuRan.Mon <- sum(diag(confRan.Mon))/sum(confRan.Mon))
+
+data.frame(Place = rep(c("LA", "Montgomery"), 2),
+           Method = c(rep(c("rpart"),2), rep(c("ranger"),2)),
+           Accuracy = c(accuracy.LA, accuracy.Mon,
+                        accuRan.LA, accuRan.Mon))
+
+## The reason why other users can find such a high accuracy (above 90)
+## is because she is using distance affected and time duraction, which
+## could in fact be parameters used to decide the severity factor level.
+## we did not receive an answer yet, but even if this is not true, we
+## anyway could not use this values as predictors to forecast accidents,
+## while we could use weather forecast and signalization in a given place
+## to predict the severity of accidents in a given place of certain cities.
+##
+## Even more, we could predict number of accidents to happen in a given
+## city, at diferent months changing the arrangement of our data frame:
+
+## PREDICT NO OF ACCIDENTS PER MONTH ####################################
+## ----------------------------------------------------------------------
+
+## Happening of accidents per month
+## Months
 US_accidents %>%
-    select(Start_Time, `Humidity(%)`) %>%
-    mutate(Hour = hour(Start_Time)) %>%
-    cor(x = `Humidity(%)`, y = Hour)
+    select(Start_Time) %>%
+    transmute(Month = month(Start_Time,
+                            label = T,
+                            locale = 'en_US.utf8'),
+              Year = year(Start_Time)) %>%
+    filter(Year != 2015) %>% # only 7 accidents overall
+    group_by(Year, Month) %>%
+    summarise(`No of accidents` = n()) %>%
+    ggplot(aes(x = Month, y = `No of accidents`)) +
+    geom_bar(stat = 'identity') +
+    facet_grid(~Year) +
+    theme(axis.text.x = element_text(angle = 90))
+
+## Let's fill the gaps!!!
+
+## 

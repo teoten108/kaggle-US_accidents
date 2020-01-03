@@ -1,6 +1,3 @@
-INTRODUCTION
-============
-
 The following project is an Exploratory Data Analysis based on a data
 set obtained from kaggle, [US
 Accidents](https://www.kaggle.com/sobhanmoosavi/us-accidents), which was
@@ -11,12 +8,22 @@ keep all my work of data processing together in one website. However,
 the kaggle kernel that I created can be found
 [here](https://www.kaggle.com/teoten/us-accidents-eda)
 
-Let’s get started with the required libraries and calling the data:
+INTRODUCTION
+============
+
+With the following exploratory analysis we will see how much parameters
+like humidity and traffic signals influence the accidents in the USA,
+and why some others are not so decisive. We will explore how in
+different states different parameters are more important than others,
+and how different variables could help us to predict accidents.
+
+We can get started, but first things first: calling the required
+libraries and the data:
 
 ``` r
 library(tidyverse)
-library(lubridate)
 library(cowplot)
+library(lubridate)
 
 #US_accidents <- read_csv('../input/us-accidents/US_Accidents_May19.csv')
 load('eda.RData')
@@ -102,10 +109,14 @@ US_accidents %>%
 By default, calling the data as a tibble gives us already valuable
 information on the data set. Using `summary` on selected variables
 returns a first description of our data, and the first impressions about
-the accidents: \* There are extreme temperatures, from -77 to 170 F \*
-Wind chill also extreme to -65 \* Maximum wind speed reaches 822 mph \*
-Humidity reaches 100 % \* Precipitation, distance affected and
-visibility do not seem to be of big importance
+the accidents:
+
+-   There are extreme temperatures, from -77 to 170 F
+-   Wind chill also extreme to -65
+-   Maximum wind speed reaches 822 mph
+-   Humidity reaches 100 %
+-   Precipitation, distance affected and visibility do not seem to be of
+    big importance
 
 We can go now to the Boolean variables:
 
@@ -155,73 +166,14 @@ signals %>%
     theme(legend.position="none")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-3-1.png) We can
-also see that most of the accidents happen at traffic signals, then
-junctions and crossing.
+![](README_files/figure-markdown_github/unnamed-chunk-3-1.png)
+
+We can also see that most of the accidents happen at traffic signals,
+then junctions and crossing.
 
 ``` r
 ## Other variables
-US_accidents %>%
-    select(ID, Source, TMC, Severity, Description, Amenity, Stop) %>%
-    sample_n(size = 50) %>%
-    print(n = 50)
-```
-
-    ## # A tibble: 50 x 7
-    ##    ID      Source   TMC Severity Description                  Amenity Stop 
-    ##    <chr>   <chr>  <dbl>    <dbl> <chr>                        <lgl>   <lgl>
-    ##  1 A-1928… Bing      NA        3 At I-294/Exit 277B - Accide… FALSE   FALSE
-    ##  2 A-2098… Bing      NA        2 At Curtner Ave/Exit 3 - Acc… FALSE   FALSE
-    ##  3 A-1678… MapQu…   201        2 Accident on FL-535 at Lake … FALSE   FALSE
-    ##  4 A-2135… Bing      NA        2 At CA-60/Pomona Fwy - Accid… FALSE   FALSE
-    ##  5 A-1201… MapQu…   201        3 Left hand shoulder blocked … FALSE   FALSE
-    ##  6 A-4097… MapQu…   201        2 Right lane blocked due to a… FALSE   FALSE
-    ##  7 A-1691… MapQu…   201        2 Accident on Copper Cove Dr … FALSE   FALSE
-    ##  8 A-2796… MapQu…   241        3 #3 lane blocked due to acci… FALSE   FALSE
-    ##  9 A-1257… MapQu…   201        3 Slow lane blocked due to ac… FALSE   FALSE
-    ## 10 A-3562… MapQu…   201        3 Two right lane blocked due … FALSE   FALSE
-    ## 11 A-1686… MapQu…   201        2 Accident on TX-1604 Westbou… FALSE   FALSE
-    ## 12 A-1933… Bing      NA        4 At W Indian School Rd - Acc… FALSE   FALSE
-    ## 13 A-5159… MapQu…   241        2 Lane blocked due to acciden… FALSE   FALSE
-    ## 14 A-2172… Bing      NA        4 Ramp closed to CA-91 - Road… FALSE   FALSE
-    ## 15 A-1493… MapQu…   201        2 Accident on Garnett Rd at 5… FALSE   FALSE
-    ## 16 A-1760… MapQu…   201        2 Accident on IL-38 Roosevelt… FALSE   FALSE
-    ## 17 A-3877… MapQu…   201        2 Accident on Amelia Rd both … FALSE   FALSE
-    ## 18 A-5574… MapQu…   201        2 Accident on NV-207 Eastboun… FALSE   FALSE
-    ## 19 A-8651… MapQu…   201        2 Accident on US-41 8th St Ea… FALSE   FALSE
-    ## 20 A-7374… MapQu…   201        3 Left hand shoulder blocked … FALSE   FALSE
-    ## 21 A-1152… MapQu…   201        3 Right lane blocked due to a… FALSE   FALSE
-    ## 22 A-5511… MapQu…   201        2 Accident on MA-3 Northbound… FALSE   FALSE
-    ## 23 A-1255… MapQu…   201        3 Accident on I-75 Southbound… FALSE   FALSE
-    ## 24 A-1877… Bing      NA        4 Closed between US-11/Exit 1… FALSE   FALSE
-    ## 25 A-1985… Bing      NA        2 At I-77/West Virginia Tpke … FALSE   FALSE
-    ## 26 A-5907… MapQu…   201        2 Accident on RI-103 Child St… FALSE   FALSE
-    ## 27 A-2100… Bing      NA        3 At E Alameda Ave/Exit 8 - A… FALSE   FALSE
-    ## 28 A-1981… Bing      NA        4 Closed between I-39/I-90/Ex… FALSE   TRUE 
-    ## 29 A-1991… Bing      NA        4 Closed at Monroe - Road clo… FALSE   FALSE
-    ## 30 A-3679… MapQu…   201        2 Accident on Pierson Rd at S… FALSE   FALSE
-    ## 31 A-6272… MapQu…   201        2 Accident on Forum Dr at Six… FALSE   FALSE
-    ## 32 A-9661… MapQu…   201        2 Right lane blocked due to a… FALSE   FALSE
-    ## 33 A-3447… MapQu…   201        3 Accident on I-15 Southbound… FALSE   FALSE
-    ## 34 A-1934… Bing      NA        2 At CA-107/Hawthorne Blvd/Ex… FALSE   FALSE
-    ## 35 A-2010… Bing      NA        3 At CO-8/Morrison Rd - Accid… FALSE   FALSE
-    ## 36 A-7706… MapQu…   236        3 Heavy traffic left hand sho… FALSE   FALSE
-    ## 37 A-5043… MapQu…   201        2 Right hand shoulder blocked… FALSE   FALSE
-    ## 38 A-80046 MapQu…   201        2 Accident on CA-57 Northboun… FALSE   FALSE
-    ## 39 A-8434… MapQu…   201        3 Right lane blocked and righ… FALSE   FALSE
-    ## 40 A-1990… Bing      NA        2 Between US-30/Exit 3 and I-… FALSE   FALSE
-    ## 41 A-1813… Bing      NA        3 Between Hudson Ter/Palisade… FALSE   FALSE
-    ## 42 A-9416… MapQu…   241        3 Middle lane blocked due to … FALSE   FALSE
-    ## 43 A-2806… MapQu…   245        3 Two lanes blocked queueing … FALSE   FALSE
-    ## 44 A-3471… MapQu…   201        3 Accident on I-5 Southbound … FALSE   FALSE
-    ## 45 A-1290… MapQu…   201        2 Accident on Lakewood Ave at… FALSE   FALSE
-    ## 46 A-1426… MapQu…   201        2 Left lane blocked due to ac… FALSE   FALSE
-    ## 47 A-3513… MapQu…   201        2 Lane blocked on exit ramp d… FALSE   FALSE
-    ## 48 A-2271… MapQu…   201        2 Accident on US-33 Columbus … FALSE   FALSE
-    ## 49 A-1836… Bing      NA        3 At US-150/Exit 119 - Accide… FALSE   FALSE
-    ## 50 A-1297… MapQu…   201        3 Right and Right center lane… FALSE   FALSE
-
-``` r
+##
 ## API which reported accident
 unique(US_accidents$Source)
 ```
@@ -262,10 +214,6 @@ US_accidents %>%
     geom_histogram(aes(x = `Temperature(F)`))
 ```
 
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-
-    ## Warning: Removed 62265 rows containing non-finite values (stat_bin).
-
 ![](README_files/figure-markdown_github/unnamed-chunk-5-1.png)
 
 ``` r
@@ -276,8 +224,6 @@ US_accidents %>%
     ggplot() +
     geom_histogram(aes(x = `Temperature(F)`))
 ```
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 
 ![](README_files/figure-markdown_github/unnamed-chunk-5-2.png)
 
@@ -290,18 +236,17 @@ US_accidents %>%
     geom_histogram(aes(x = `Temperature(F)`))
 ```
 
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+![](README_files/figure-markdown_github/unnamed-chunk-5-3.png)
 
-![](README_files/figure-markdown_github/unnamed-chunk-5-3.png) In the
-first plot we can immediately see that below 0 and above 100°F there is
-practically nothing. Therefore we create a second plot centred between
-this values. Here we can see that most of the accidents happen between
-45 and 80°F, with some particular peaks. Thus, we create a third plot
-where we can see those peaks in more detail. There is a particular trend
-of a considerable increase in the number of accidents marked by a peak,
-and then a drop, follow by a slow increase, and then the same trend.
-This could be caused most probably by the instruments of measurement in
-the meteorological station, to certain extent.
+In the first plot we can immediately see that below 0 and above 100°F
+there is practically nothing. Therefore we create a second plot centred
+between this values. Here we can see that most of the accidents happen
+between 45 and 80°F, with some particular peaks. Thus, we create a third
+plot where we can see those peaks in more detail. There is a particular
+trend of a considerable increase in the number of accidents marked by a
+peak, and then a drop, follow by a slow increase, and then the same
+trend. This could be caused most probably by the instruments of
+measurement in the meteorological station, to certain extent.
 
 ``` r
 ## Wind chill
@@ -309,10 +254,6 @@ US_accidents %>%
     ggplot() +
     geom_histogram(aes(x = `Wind_Chill(F)`))
 ```
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-
-    ## Warning: Removed 1852370 rows containing non-finite values (stat_bin).
 
 ![](README_files/figure-markdown_github/unnamed-chunk-6-1.png)
 
@@ -331,7 +272,7 @@ US_accidents %>%
 There is an increase in the number of accidents with the increase of the
 wind temperature, with the peak at 75°F. The number of accidents at
 really cold temperatures (here I chose 30°F) is rather small compared
-with the total accidents: 209,936 out of 2,243,939, or 9.35 %
+with the total accidents: 209,936 out of 2,243,939, or 9.35 percent
 
 ``` r
 ## Wind speed
@@ -339,10 +280,6 @@ US_accidents %>%
     ggplot() +
     geom_histogram(aes(x = `Wind_Speed(mph)`))
 ```
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-
-    ## Warning: Removed 442954 rows containing non-finite values (stat_bin).
 
 ![](README_files/figure-markdown_github/unnamed-chunk-7-1.png)
 
@@ -354,15 +291,14 @@ US_accidents %>%
     geom_histogram(aes(x = `Wind_Speed(mph)`))
 ```
 
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+![](README_files/figure-markdown_github/unnamed-chunk-7-2.png)
 
-![](README_files/figure-markdown_github/unnamed-chunk-7-2.png) Despite
-of the fact that maximum wind speed reaches, we can see in our first
-plot that most of the accidents happened at rather low speed. More
-interesting: when we zoom into the values below 25 mph we can see again
-a trend of gaps between certain values. This is clearly a measurement
-issue. Thus, our theory about the temperature problems could be
-certainly related to the measurement instruments.
+Despite of the fact that maximum wind speed reaches 822.8 mph, we can
+see in our first plot that most of the accidents happened at rather low
+speed. More interesting: when we zoom into the values below 25 mph we
+can see again a trend of gaps between certain values. This is clearly a
+measurement issue. Thus, our theory about the temperature problems could
+be certainly related to the measurement instruments.
 
 ``` r
 ## Humidity
@@ -370,10 +306,6 @@ US_accidents %>%
     ggplot() +
     geom_histogram(aes(x = `Humidity(%)`))
 ```
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
-
-    ## Warning: Removed 64467 rows containing non-finite values (stat_bin).
 
 ![](README_files/figure-markdown_github/unnamed-chunk-8-1.png)
 
@@ -385,16 +317,15 @@ US_accidents %>%
     geom_histogram(aes(x = `Humidity(%)`))
 ```
 
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+![](README_files/figure-markdown_github/unnamed-chunk-8-2.png)
 
-![](README_files/figure-markdown_github/unnamed-chunk-8-2.png) Unlike
-our previous variables, we can see that the number of accidents
+Unlike our previous variables, we can see that the number of accidents
 increases when the humidity increases.
 
 STATES
 ======
 
-Now let’s explore a little bit the accidents in different states: which
+Now we can explore a little bit the accidents in different states: which
 state has the main occurrence of accidents? Which one the most severe
 ones? Is there a relationship with the traffic lights or the humidity as
 we discovered early?
@@ -606,6 +537,25 @@ US_accidents %>%
 ![](README_files/figure-markdown_github/unnamed-chunk-13-1.png)
 
 ``` r
+## Month/Year
+US_accidents %>%
+    select(Start_Time) %>%
+    transmute(Month = month(Start_Time,
+                            label = T,
+                            locale = 'en_US.utf8'),
+              Year = year(Start_Time)) %>%
+    filter(Year != 2015) %>% # only 7 accidents overall
+    group_by(Year, Month) %>%
+    summarise(`No of accidents` = n()) %>%
+    ggplot(aes(x = Month, y = `No of accidents`)) +
+    geom_bar(stat = 'identity') +
+    facet_grid(~Year)  +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+![](README_files/figure-markdown_github/unnamed-chunk-13-2.png)
+
+``` r
 ## Per hour
 US_accidents %>%
     select(Start_Time) %>%
@@ -616,7 +566,7 @@ US_accidents %>%
     geom_histogram(stat = 'count')
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-13-2.png)
+![](README_files/figure-markdown_github/unnamed-chunk-13-3.png)
 
 The amount of accidents reduces between April and July, as well as
 during night time. It seems that most of the accidents happen in the

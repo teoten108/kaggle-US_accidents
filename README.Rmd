@@ -6,8 +6,6 @@ output:
     variant: markdown_github
 ---
 
-# INTRODUCTION
-
 The following project is an Exploratory Data Analysis based on a data set
 obtained from kaggle, [US Accidents](https://www.kaggle.com/sobhanmoosavi/us-accidents),
 which was intended to be my first kernel in Kaggle. For that reason I
@@ -16,12 +14,22 @@ kaggle every now and then. I have decided to keep a copy on github in
 order to keep all my work of data processing together in one website.
 However, the kaggle kernel that I created can be found [here](https://www.kaggle.com/teoten/us-accidents-eda)
 
-Let's get started with the required libraries and calling the data:
+# INTRODUCTION
+
+With the following exploratory analysis we will see how much
+parameters like humidity and traffic signals influence the 
+accidents in the USA, and why some others are not so decisive.
+We will explore how in different states
+different parameters are more important than others, and how
+different variables could help us to predict accidents.
+
+We can get started, but first things first: calling the required 
+libraries and the data:
 
 ```{r, message = FALSE, warning = FALSE}
 library(tidyverse)
-library(lubridate)
 library(cowplot)
+library(lubridate)
 
 #US_accidents <- read_csv('../input/us-accidents/US_Accidents_May19.csv')
 load('eda.RData')
@@ -47,10 +55,12 @@ US_accidents %>%
            `Precipitation(in)`) %>%
     summary()
 ```
+
 By default, calling the data as a tibble gives us already valuable
 information on the data set. Using `summary` on selected variables returns
 a first description of our data, and the first impressions about the
 accidents: 
+
   * There are extreme temperatures, from -77 to 170 F
   * Wind chill also extreme to -65
   * Maximum wind speed reaches 822 mph
@@ -85,16 +95,13 @@ signals %>%
     labs(x = NULL) +
     theme(legend.position="none")
 ```
+
 We can also see that most of the accidents happen at traffic signals, then
 junctions and crossing.
 
 ```{r, message = FALSE, warning = FALSE}
 ## Other variables
-US_accidents %>%
-    select(ID, Source, TMC, Severity, Description, Amenity, Stop) %>%
-    sample_n(size = 50) %>%
-    print(n = 50)
-
+##
 ## API which reported accident
 unique(US_accidents$Source)
 ## Traffic message channel
@@ -102,6 +109,7 @@ unique(US_accidents$TMC)
 ## Severity: 1 is lesser, 4 is higher
 unique(US_accidents$Severity)
 ```
+
 There are 3 sources of the data, 21 traffic message channels and 4 
 values of severity.
 
@@ -113,7 +121,7 @@ values. Therefore, we start by observing if the extreme values (such as too
 cold or too hot weather) are a normal trend for the accidents to happen, 
 or they are rather atypical values.
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 ## Temperature
 US_accidents %>%
     ggplot() +
@@ -134,6 +142,7 @@ US_accidents %>%
     geom_histogram(aes(x = `Temperature(F)`))
 
 ```
+
 In the first plot we can immediately see that below 0 and above 100&deg;F 
 there is practically nothing. Therefore we create a second plot centred 
 between this values. Here we can see that most of the accidents happen 
@@ -145,7 +154,7 @@ a drop, follow by a slow increase, and then the same trend. This could be
 caused most probably by the instruments of measurement in the 
 meteorological station, to certain extent. 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 ## Wind chill
 US_accidents %>%
     ggplot() +
@@ -156,12 +165,14 @@ US_accidents %>%
     filter(`Wind_Chill(F)` < 30) %>%
     summarise(n())
 ```
+
 There is an increase in the number of accidents with the increase of the
 wind temperature, with the peak at 75&deg;F. The number of accidents at 
 really cold temperatures (here I chose 30&deg;F) is rather small compared 
-with the total accidents: 209,936 out of 2,243,939, or 9.35 %
+with the total accidents: 209,936 out of 2,243,939, or 
+9.35 percent
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 ## Wind speed
 US_accidents %>%
     ggplot() +
@@ -173,14 +184,16 @@ US_accidents %>%
     ggplot() +
     geom_histogram(aes(x = `Wind_Speed(mph)`))
 ```
-Despite of the fact that maximum wind speed reaches, we can see in
+
+Despite of the fact that maximum wind speed reaches 
+822.8 mph, we can see in
 our first plot that most of the accidents happened at rather low speed.
 More interesting: when we zoom into the values below 25 mph we can see
 again a trend of gaps between certain values. This is clearly a 
 measurement issue. Thus, our theory about the temperature problems could
 be certainly related to the measurement instruments. 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 ## Humidity
 US_accidents %>%
     ggplot() +
@@ -192,12 +205,13 @@ US_accidents %>%
     ggplot() +
     geom_histogram(aes(x = `Humidity(%)`))
 ```
+
 Unlike our previous variables, we can see that the number of accidents
 increases when the humidity increases. 
 
 # STATES
 
-Now let's explore a little bit the accidents in different states: which
+Now we can explore a little bit the accidents in different states: which
 state has the main occurrence of accidents? Which one the most severe
 ones? Is there a relationship with the traffic lights or the humidity
 as we discovered early?
@@ -368,6 +382,21 @@ US_accidents %>%
     ggplot(aes(x = Month)) +
     geom_bar()
 
+## Month/Year
+US_accidents %>%
+    select(Start_Time) %>%
+    transmute(Month = month(Start_Time,
+                            label = T,
+                            locale = 'en_US.utf8'),
+              Year = year(Start_Time)) %>%
+    filter(Year != 2015) %>% # only 7 accidents overall
+    group_by(Year, Month) %>%
+    summarise(`No of accidents` = n()) %>%
+    ggplot(aes(x = Month, y = `No of accidents`)) +
+    geom_bar(stat = 'identity') +
+    facet_grid(~Year)  +
+    theme(axis.text.x = element_text(angle = 90))
+
 ## Per hour
 US_accidents %>%
     select(Start_Time) %>%
@@ -416,3 +445,4 @@ US_accidents %>%
 As expected, we can easily observe the rise of the humidity at dusk and
 down (moments of most accidents), and its reduction between March and July
 (months with less accidents).
+
